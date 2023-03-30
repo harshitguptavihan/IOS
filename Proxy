@@ -1,0 +1,93 @@
+//
+//  Proxy.swift
+//
+//  Created by Admin on 11/02/22.
+//  Copyright © 2022 Reveralto Infotech. All rights reserved.
+//
+
+import UIKit
+class Proxy: NSObject {
+    static let shared = Proxy()
+    // Screen width.
+    private static var  screenWidth: CGFloat {
+        return UIScreen.main.bounds.width
+    }
+    private static var  screenHeight: CGFloat {
+        return UIScreen.main.bounds.height
+    }
+    func getWidthPercentage(d:CGFloat) -> CGFloat{
+        return (Proxy.screenWidth * d)/100.0
+    }
+    func getHeightPercentage(d:CGFloat) -> CGFloat{
+        return (Proxy.screenHeight * d)/100.0
+    }
+    func enableRightSwap(isEnable : Bool){
+        
+    }
+    func timeIntervalToString(timeInterval : Int) -> String{
+        if timeInterval >= 60{
+            return "01:\(String(format: "%02d", timeInterval - 60))"
+        }else {
+            return "00:\(String(format: "%02d", timeInterval))"
+        }
+    }
+    func getDoubleValue(value : Any?) -> Double{
+        if let dValue = value as? Double{
+            return Double(dValue)
+        }else if let dValue = value as? Int{
+            return Double(dValue)
+        }else if let dValue = value as? Float{
+            return Double(dValue)
+        }else if let dValue = value as? String{
+            return Double(dValue) ?? 0.0
+        }else{
+            return 0.0
+        }
+    }
+    func getIntValue(value : Any?) -> Int{
+        if let dValue = value as? Double{
+            return Int(dValue)
+        }else if let dValue = value as? Int{
+            return Int(dValue)
+        }else if let dValue = value as? Float{
+            return Int(dValue)
+        }else if let dValue = value as? String{
+            return Int(dValue) ?? 0
+        }else{
+            return 0
+        }
+    }
+    func getStringValue(value : Any?) -> String{
+        if let dValue = value as? Double{
+            return String(dValue)
+        }else if let dValue = value as? Int{
+            return String(dValue)
+        }else if let dValue = value as? Float{
+            return String(dValue)
+        }else if let dValue = value as? String{
+            return String(dValue)
+        }else{
+            return ""
+        }
+    }
+    func getFloatValue(value : Any?) -> Float{
+        if let dValue = value as? Double{
+            return Float(dValue)
+        }else if let dValue = value as? Int{
+            return Float(dValue)
+        }else if let dValue = value as? Float{
+            return Float(dValue)
+        }else if let dValue = value as? String{
+            return Float(dValue) ?? 0.0
+        }else{
+            return 0.0
+        }
+    }
+    func callNumber(phoneNumber: String){
+        guard let url = URL(string: "telprompt://\(phoneNumber)"),
+              UIApplication.shared.canOpenURL(url) else {
+            return
+        }
+        UIApplication.shared.open(url, options: [:], completionHandler: nil)
+    }
+}
