@@ -1,0 +1,187 @@
+//
+//  WifiListVC.swift
+//  Ghost
+//
+//  Created by apple on 26/08/22.
+//
+
+import UIKit
+import CoreLocation
+import SystemConfiguration.CaptiveNetwork
+import LocalAuthentication
+import NetworkExtension
+
+class WifiListVC: UIViewController {
+    //MARK: IBOutlet
+    @IBOutlet weak var tblVwWifiList: UITableView!
+    //MARK: Varible
+    var locationManager = CLLocationManager()
+    var objWifiListVM = WifiListVM()
+    //MARK: Life Cycle
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        if #available(iOS 13.0, *) {
+            let status = CLLocationManager.authorizationStatus()
+            if status == .authorizedWhenInUse {
+                updateWiFi()
+            } else {
+                locationManager.delegate = self
+                locationManager.requestWhenInUseAuthorization()
+            }
+        } else {
+            updateWiFi()
+        }
+    }
+    override func viewWillAppear(_ animated: Bool) {
+        updateWiFi()
+    }
+    
+    //MARK: IBAction
+    @IBAction func actionAddNetwork(_ sender: UIButton) {
+        goToJoinWifiScreen(isForgetOptionHidden: true, wifiType: .others)
+    }
+    @IBAction func actionBack(_ sender: UIButton) {
+        self.dismiss(animated: true)
+    }
+    //MARK: Custom Function
+    
+    func updateWiFi() {
+        print("SSID: \(fetchNetworkInfo()?.first?.ssid ?? "")")
+        print("BSSID: \(fetchNetworkInfo()?.first?.bssid ?? "")")
+        self.objWifiListVM.arrList[0].1[0].0 = WifiConfigWrapper.shared.getWifiConfig(isPrimary: true, isSecondary: false).0 ?? "Primary"
+        self.objWifiListVM.arrList[1].1[0].0 = WifiConfigWrapper.shared.getWifiConfig(isPrimary: false, isSecondary: true).0 ?? "Guest"
+        
+        self.objWifiListVM.arrList[0].1[0].1 = false
+        self.objWifiListVM.arrList[1].1[0].1 = false
+        
+        if (self.objWifiListVM.arrList[0].1[0].0 == fetchNetworkInfo()?.first?.ssid ?? ""){
+            self.objWifiListVM.arrList[0].1[0].1 = true
+            if self.objWifiListVM.arrList.count > 2 {
+                self.objWifiListVM.arrList.remove(at: 2)
+            }
+        }else if (self.objWifiListVM.arrList[1].1[0].0 == fetchNetworkInfo()?.first?.ssid ?? ""){
+            self.objWifiListVM.arrList[1].1[0].1 = true
+            if self.objWifiListVM.arrList.count > 2 {
+                self.objWifiListVM.arrList.remove(at: 2)
+            }
+        }else{
+            if self.objWifiListVM.arrList.count <= 2 {
+                self.objWifiListVM.arrList.append((Constant.otherNetwork,[(fetchNetworkInfo()?.first?.ssid ?? Constant.unknown,true)]))
+            }
+        }
+        print(self.objWifiListVM.arrList)
+        self.tblVwWifiList.reloadData()
+    }
+    
+    func authenticateTapped(ssid:String, passphrase:String) {
+        let context = LAContext()
+        var error: NSError?
+
+        if context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) {
+            let reason = "Identify yourself!"
+
+            context.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: reason) {
+                [weak self] success, authenticationError in
+
+                DispatchQueue.main.async {
+                    if success {
+                        let configuration = NEHotspotConfiguration.init(ssid: ssid ?? "", passphrase: passphrase ?? "" , isWEP: false)
+                        configuration.joinOnce = false
+                        /// set true if you want only for in app
+                        NEHotspotConfigurationManager.shared.apply(configuration) { error in
+                            if error != nil {
+                                if error?.localizedDescription == "already associated."{
+                                    self?.showToast(message: "Already Joined With This Wifi", font: UIFont.systemFont(ofSize: 18, weight: .regular))
+                                    self?.goToHomeScreen()
+                                }else{
+                                    self?.showToast(message:  "You Entered Wrong Credentials", font: UIFont.systemFont(ofSize: 18, weight: .regular))
+                                }
+                            }else {
+                                self?.goToHomeScreen()
+                            }
+                        }
+                        NEHotspotConfigurationManager.shared.getConfiguredSSIDs { str in
+                            debugPrint(str)
+                        }
+                    } else {
+                        print(error?.localizedDescription)
+                        // error
+                    }
+                }
+            }
+        } else {
+            // no biometry
+        }
+    }
+    func goToHomeScreen(){
+        let window = (UIApplication.shared.connectedScenes.first?.delegate as? SceneDelegate)?.window
+        let vc:HomeVC = HomeVC.instantiate(fromAppStoryboard: .Main)
+        let nav = UINavigationController()
+        nav.isNavigationBarHidden = true
+        nav.viewControllers = [vc]
+        window!.rootViewController = nav
+        window!.makeKeyAndVisible()
+    }
+}
+//MARK: - UITableViewDelegate
+extension WifiListVC : UITableViewDelegate{
+    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        if indexPath.section == 0 {
+            print("Primary Network Tapped")
+            let ssid = WifiConfigWrapper.shared.getWifiConfig(isPrimary: true, isSecondary: false).0 ?? "Primary"
+            let passphrase = WifiConfigWrapper.shared.getWifiConfig(isPrimary: true, isSecondary: false).1 ?? ""
+            self.authenticateTapped(ssid: ssid, passphrase: passphrase)
+        } else if indexPath.section == 1 {
+            print("Secondary Network Tapped")
+            let ssid = WifiConfigWrapper.shared.getWifiConfig(isPrimary: false, isSecondary: true).0 ?? "Guest"
+            let passphrase = WifiConfigWrapper.shared.getWifiConfig(isPrimary: false, isSecondary: true).1 ?? ""
+            self.authenticateTapped(ssid: ssid, passphrase: passphrase)
+        } else {
+            print("Other Network Tapped")
+                let ssid = WifiConfigWrapper.shared.getWifiConfig(isPrimary: false, isSecondary: false).0 ?? "Unknown"
+                let passphrase = WifiConfigWrapper.shared.getWifiConfig(isPrimary: false, isSecondary: false).1 ?? ""
+                self.authenticateTapped(ssid: ssid, passphrase: passphrase)
+        }
+    }
+}
+
+extension WifiListVC {
+    func fetchNetworkInfo() -> [NetworkInfo]? {
+        if let interfaces: NSArray = CNCopySupportedInterfaces() {
+            var networkInfos = [NetworkInfo]()
+            for interface in interfaces {
+                let interfaceName = interface as! String
+                var networkInfo = NetworkInfo(interface: interfaceName,
+                                              success: false,
+                                              ssid: nil,
+                                              bssid: nil)
+                if let dict = CNCopyCurrentNetworkInfo(interfaceName as CFString) as NSDictionary? {
+                    self.objWifiListVM.getData = dict
+                    networkInfo.success = true
+                    networkInfo.ssid = dict[kCNNetworkInfoKeySSID as String] as? String
+                    networkInfo.bssid = dict[kCNNetworkInfoKeyBSSID as String] as? String
+                }
+                networkInfos.append(networkInfo)
+            }
+            return networkInfos
+        }
+        return nil
+    }
+}
+
+extension WifiListVC : CLLocationManagerDelegate{
+    func locationManager(_ manager: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {
+        if status == .authorizedWhenInUse {
+            updateWiFi()
+        }
+    }
+}
+
+struct NetworkInfo {
+    var interface: String
+    var success: Bool = false
+    var ssid: String?
+    var bssid: String?
+}
+
+
