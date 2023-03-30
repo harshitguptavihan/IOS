@@ -1,0 +1,9 @@
+    func goToHomeScreen(){
+        let window = (UIApplication.shared.connectedScenes.first?.delegate as? SceneDelegate)?.window
+        let vc:HomeVC = HomeVC.instantiate(fromAppStoryboard: .Main)
+        let nav = UINavigationController()
+        nav.isNavigationBarHidden = true
+        nav.viewControllers = [vc]
+        window!.rootViewController = nav
+        window!.makeKeyAndVisible()
+    }
