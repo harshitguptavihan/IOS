@@ -1,0 +1,31 @@
+    
+    
+    import NetworkExtension
+import SystemConfiguration.CaptiveNetwork
+
+    
+    
+    
+    
+    func joinNetwork(){
+        self.view.endEditing(true)
+        ///* @param isWEP YES specifies WEP Wi-Fi Network else WPA/WPA2 Personal Wi-Fi Network
+        let configuration = NEHotspotConfiguration.init(ssid: txtFldWifiName.text ?? "", passphrase: txtFldPasswrd.text ?? "" , isWEP: objEnterPasswrdVM.isWEP)
+        configuration.joinOnce = false
+        /// set true if you want only for in app
+        NEHotspotConfigurationManager.shared.apply(configuration) { error in
+            if error != nil {
+                if error?.localizedDescription == "already associated."{
+                    self.showToast(message: "Already Joined With This Wifi", font: UIFont.systemFont(ofSize: 18, weight: .regular))
+                    self.connetedSuccessfull()
+                }else{
+                    self.showToast(message:  "You Entered Wrong Credentials", font: UIFont.systemFont(ofSize: 18, weight: .regular))
+                }
+            }else {
+                self.connetedSuccessfull()
+            }
+        }
+        NEHotspotConfigurationManager.shared.getConfiguredSSIDs { str in
+            debugPrint(str)
+        }
+    }
